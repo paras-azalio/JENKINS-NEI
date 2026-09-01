@@ -1,0 +1,102 @@
+#!/bin/ksh
+
+stage="";
+contents="";
+patchadd="";
+
+me=$0;
+dir="postinstall";
+
+if [ $me = "$dir/uninstall_release" -o $me = "./$dir/uninstall_release" ] ; then
+  : # ok
+else
+  echo 1>&2 "uninstall_release: Sorry.  `basename $me` must be run in the staging directory"
+  exit 1
+fi
+
+set `uname -a`
+arch=$1
+
+if [ "$3" = "B.11.00" -o "$3" = "B.11.11" -o "$3" = "B.11.23" -o "$3" = "B.11.31" ]; then
+
+	arch="HP-UX.11";
+
+fi
+if [ "$arch" = "Linux" ]; then
+	arch="LINUXintel"
+fi
+
+while getopts hd: opt
+do
+	case "$opt" in
+	h)	print_usage;
+		;;
+	
+	d)  stage="$OPTARG";
+		;;
+	
+	\?) print_usage;
+		;;
+	esac
+done
+shift $(($OPTIND -1)) 
+
+contents=`ls postinstall/*.contents`;
+
+if [ ! -f "$contents" ] || [ -z "$contents" ]; then
+	print STDERR "Invalid contents file $contents!";
+	exit 1;
+fi 
+
+installer=`grep "requires INSTALLER_REL" $contents | cut -d" " -f2`;
+patchto=`grep "patchto " $contents | cut -d" " -f2`;
+
+if [ "$patchto" != "" ]; then
+	echo "You are uninstalling patch to $patchto!";
+	patchadd="../../"
+fi
+
+if [ "$installer" = "" ]; then
+	print STDERR "Unable to obtain required uninstaller version. Using the latest found!"; 
+	installer=`ls -d1 $patchadd../INSTALLER_REL_* | tail -1`;
+	if [ "$installer" = "" ]; then
+		print STDERR "Unable to obtain any installer!";
+		exit 1;
+	fi
+	installer_path="$installer/postinstall";
+else
+	installer_path="$patchadd../$installer/postinstall";
+fi
+
+installer="$installer_path/uninstall_release.pl";
+
+if [ ! -d $installer_path ]; then
+
+		print STDERR "Required installer version $installer does not appear to be installed!";
+		print STDERR "Please, make sure it is installed before proceeding."; 
+
+	exit 1;
+
+fi
+echo "Executing uninstaller from $installer_path";
+
+if [ ! -z "$stage" ]; then
+	optarg="-d $stage";
+else
+	optarg="";
+fi
+
+	if [ "$arch" = "AIX" ]; then
+		    adir="aix-thread-multi-64all"
+			LIBPATH=$installer_path/$arch/$adir/CORE/:$LIBPATH
+            export LIBPATH
+
+	fi	
+	if [ "$arch" = "OSF1" ]; then
+			adir="OSF1alpha-dec_osf-thread-multi"
+		    LD_LIBRARY_PATH=$installer_path/$arch/$adir/CORE/:$LD_LIBRARY_PATH
+		    export LD_LIBRARY_PATH
+	fi
+
+
+$installer_path/$arch/perl $installer

@@ -1,0 +1,159 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <org.biouno.unochoice.ChoiceParameter plugin="uno-choice@2.8.9">
+          <name>SELECTED_BUILD</name>
+          <randomName>choice-parameter-254237104829000</randomName>
+          <visibleItemCount>1</visibleItemCount>
+          <script class="org.biouno.unochoice.model.GroovyScript">
+            <secureScript plugin="script-security@1399.ve6a_66547f6e1">
+              <script>import jenkins.model.Jenkins
+
+// 1. Initialize the list with your default option ONLY
+def finalOptions = [&quot;--- TRIGGER NEW BUILD ---&quot;] 
+def folderList = []
+
+try {
+    def jenkinsHome = Jenkins.get().getRootDir().getAbsolutePath()
+    def buildFolder = new File(jenkinsHome, &quot;../builds/FILE_NEI_PACKAGE&quot;)
+
+    if (buildFolder.exists() &amp;&amp; buildFolder.isDirectory()) {
+        buildFolder.eachDir { dir -&gt;
+            folderList.add(dir.name)
+        }
+        
+        // 2. Sort the folders descending (newest timestamps first)
+        folderList.sort().reverse()
+        
+        // 3. Add the sorted folders AFTER the default option
+        finalOptions.addAll(folderList)
+    }
+} catch (Exception e) {
+    return [&quot;--- TRIGGER NEW BUILD ---&quot;, &quot;Error: &quot; + e.message]
+}
+
+// 4. Return the combined list where index 0 is always your TRIGGER option
+return finalOptions</script>
+              <sandbox>false</sandbox>
+            </secureScript>
+            <secureFallbackScript plugin="script-security@1399.ve6a_66547f6e1">
+              <script></script>
+              <sandbox>false</sandbox>
+            </secureFallbackScript>
+          </script>
+          <projectName>GGN_File_Deploy</projectName>
+          <projectFullName>GGN_File_Deploy</projectFullName>
+          <choiceType>PT_SINGLE_SELECT</choiceType>
+          <filterable>false</filterable>
+          <filterLength>1</filterLength>
+        </org.biouno.unochoice.ChoiceParameter>
+        <hudson.model.StringParameterDefinition>
+          <name>cpioVersion</name>
+          <description>build latest code with mentioned cpioVersion</description>
+          <defaultValue>1.1.4</defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <jdk>java8</jdk>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder plugin="conditional-buildstep@1.5.0">
+      <condition class="org.jenkins_ci.plugins.run_condition.core.StringsMatchCondition" plugin="run-condition@276.v97298f3a_cd51">
+        <arg1>${SELECTED_BUILD}</arg1>
+        <arg2>--- TRIGGER NEW BUILD ---</arg2>
+        <ignoreCase>true</ignoreCase>
+      </condition>
+      <buildStep class="hudson.plugins.parameterizedtrigger.TriggerBuilder" plugin="parameterized-trigger@890.vc240a_a_e1217f">
+        <configs>
+          <hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+            <configs class="empty-list"/>
+            <projects>FILE_NEI_PACKAGE</projects>
+            <condition>ALWAYS</condition>
+            <triggerWithNoParameters>false</triggerWithNoParameters>
+            <triggerFromChildProjects>false</triggerFromChildProjects>
+            <block>
+              <buildStepFailureThreshold>
+                <name>FAILURE</name>
+                <ordinal>2</ordinal>
+                <color>RED</color>
+                <completeBuild>true</completeBuild>
+              </buildStepFailureThreshold>
+              <unstableThreshold>
+                <name>UNSTABLE</name>
+                <ordinal>1</ordinal>
+                <color>YELLOW</color>
+                <completeBuild>true</completeBuild>
+              </unstableThreshold>
+              <failureThreshold>
+                <name>FAILURE</name>
+                <ordinal>2</ordinal>
+                <color>RED</color>
+                <completeBuild>true</completeBuild>
+              </failureThreshold>
+            </block>
+            <buildAllNodesWithLabel>false</buildAllNodesWithLabel>
+          </hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+        </configs>
+      </buildStep>
+      <runner class="org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail" plugin="run-condition@276.v97298f3a_cd51"/>
+    </org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder>
+    <hudson.tasks.BatchFile>
+      <command>@echo off&#xd;
+setlocal enabledelayedexpansion&#xd;
+&#xd;
+:: -----------------------------------------------&#xd;
+:: STEP 1 - Resolve the Folder Path&#xd;
+:: -----------------------------------------------&#xd;
+if &quot;%SELECTED_BUILD%&quot;==&quot;--- TRIGGER NEW BUILD ---&quot; (&#xd;
+    echo [INFO] Fetching the folder created by the packager...&#xd;
+    for /f %%I in (&apos;powershell -command &quot;Get-ChildItem -Path &apos;%JENKINS_HOME%\..\builds\FILE_NEI_PACKAGE&apos; -Directory | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName&quot;&apos;) do set DEPLOY_PATH=%%I&#xd;
+) else (&#xd;
+    set DEPLOY_PATH=C:\GJ\JENKINS\builds\FILE_NEI_PACKAGE\%SELECTED_BUILD%&#xd;
+)&#xd;
+&#xd;
+echo [INFO] Target Folder: %DEPLOY_PATH%&#xd;
+&#xd;
+:: -----------------------------------------------&#xd;
+:: STEP 2 - Get latest build folder from packager&#xd;
+:: -----------------------------------------------&#xd;
+set PACKAGER_BUILDS=%JENKINS_HOME%\..\builds\packager&#xd;
+&#xd;
+for /f %%I in (&apos;powershell -command &quot;Get-ChildItem -Path &apos;%PACKAGER_BUILDS%&apos; -Directory | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName&quot;&apos;) do set LATEST_BUILD=%%I&#xd;
+&#xd;
+echo Latest packager build: %LATEST_BUILD%&#xd;
+&#xd;
+:: -----------------------------------------------&#xd;
+:: STEP 3 - Get JAR from latest build folder&#xd;
+:: -----------------------------------------------&#xd;
+for /f %%I in (&apos;powershell -command &quot;Get-ChildItem -Path &apos;%LATEST_BUILD%&apos; -Filter *.jar | Select-Object -First 1 -ExpandProperty FullName&quot;&apos;) do set JAR_PATH=%%I&#xd;
+&#xd;
+echo Running JAR: %JAR_PATH%&#xd;
+&#xd;
+cd &quot;%WORKSPACE%&quot;&#xd;
+java -jar &quot;%JAR_PATH%&quot; --BUILD_PATH &quot;%DEPLOY_PATH%&quot; --scriptName DeployGGN --HOST dummy --USER dummy --PRIVATE_KEY dummy --remote-path dummy --release-path dummy --install-path dummy&#xd;
+ &#xd;
+:: Check if the JAR failed&#xd;
+if ERRORLEVEL 1 (&#xd;
+    echo Java JAR failed with exit code %ERRORLEVEL%. Aborting build.&#xd;
+    exit /b %ERRORLEVEL%&#xd;
+)&#xd;
+</command>
+      <configuredLocalRules/>
+    </hudson.tasks.BatchFile>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>

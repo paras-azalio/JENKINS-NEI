@@ -1,0 +1,7 @@
+Build Time    : 20260420_1501                          
+Commit        : a575dcd                            
+Branch        : origin/paras                        
+Job           : FILE_CR                          
+Build Number  : 1                      
+Packager Build: C:\Users\parmahaj\Documents\Projects\Nokia\JENKINS\builds\packager\20260413_1408_575cadd                      
+JAR Used      : C:\Users\parmahaj\Documents\Projects\Nokia\JENKINS\builds\packager\20260413_1408_575cadd\nei-packager-cli-1.0.0.jar                          
