@@ -1,0 +1,47 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<scriptApproval plugin="script-security@1399.ve6a_66547f6e1">
+  <approvedScriptHashes>
+    <string>SHA512:47be1a5cb660b97621250677c9d76883d3683065ee0f284e650ee3a5dc4bc3a9799037323c129f5e195124648a1cad9cf1428f926f11aa849e92748a816ffb92</string>
+    <string>SHA512:9258fd460aea6e4b53a955305ecd57281a13dd768ec6b3aee5183a5d347964fce7c9351ac3890618cb6202a879fa68ae9f0b3872a279a5d2785e55e359f7c694</string>
+    <string>SHA512:fc968b26a97962af2e9a9c4a7e7703a66ca0597b08385b3da62a195a4c1d277e5ed163b280046d815b75d60029d62e9ed8764136e0aa4f7660990e134ae9d343</string>
+  </approvedScriptHashes>
+  <approvedSignatures/>
+  <aclApprovedSignatures/>
+  <approvedClasspathEntries/>
+  <forceSandbox>false</forceSandbox>
+  <pendingScripts>
+    <pendingScript>
+      <context>
+        <user>gouravjagga</user>
+        <item>GGN File Deploy</item>
+      </context>
+      <script></script>
+      <language>groovy</language>
+    </pendingScript>
+    <pendingScript>
+      <context>
+        <user>gouravjagga</user>
+        <item>GGN File Deploy</item>
+      </context>
+      <script>import jenkins.model.Jenkins
+def jenkinsHome = Jenkins.get().getRootDir().getAbsolutePath()
+def buildFolder = new File(jenkinsHome, &quot;../builds/FILE_NEI_PACKAGE&quot;)
+def folders = [&quot;--- TRIGGER NEW BUILD ---&quot;] 
+if (buildFolder.exists() &amp;&amp; buildFolder.isDirectory()) {
+    buildFolder.eachDir { dir -&gt;
+        folders.add(dir.name)
+    }
+}
+return folders.sort()</script>
+      <language>groovy</language>
+    </pendingScript>
+  </pendingScripts>
+  <pendingSignatures>
+    <pendingSignature>
+      <context/>
+      <signature>staticMethod jenkins.model.Jenkins get</signature>
+      <dangerous>false</dangerous>
+    </pendingSignature>
+  </pendingSignatures>
+  <pendingClasspathEntries/>
+</scriptApproval>

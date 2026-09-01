@@ -1,0 +1,199 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>-1</daysToKeep>
+        <numToKeep>10</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+        <removeLastBuild>false</removeLastBuild>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.46.0">
+      <projectUrl>https://github.com/azalio-io/NOKIA_CLI_ANY/</projectUrl>
+      <displayName></displayName>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>cpioVersion</name>
+          <defaultValue>1.1.4</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@5.10.0">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <name>origin</name>
+        <refspec>+refs/heads/develop:refs/remotes/origin/develop</refspec>
+        <url>https://github.com/azalio-io/NOKIA_CLI_ANY</url>
+        <credentialsId>gitLogin</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/develop</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <browser class="hudson.plugins.git.browser.RhodeCode">
+      <url></url>
+    </browser>
+    <submoduleCfg class="empty-list"/>
+    <extensions/>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <jdk>java8</jdk>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.BatchFile>
+      <command>:: -----------------------------------------------&#xd;
+:: PRE-BUILD CLEANUP - Remove existing .Z and .specification files&#xd;
+:: -----------------------------------------------&#xd;
+echo Cleaning up existing output files from workspace...&#xd;
+&#xd;
+if exist &quot;%WORKSPACE%\*.Z&quot; (&#xd;
+    del /Q /F &quot;%WORKSPACE%\*.Z&quot;&#xd;
+    echo Deleted old .Z files.&#xd;
+)&#xd;
+&#xd;
+if exist &quot;%WORKSPACE%\*.specification&quot; (&#xd;
+    del /Q /F &quot;%WORKSPACE%\*.specification&quot;&#xd;
+    echo Deleted old .specification files.&#xd;
+)&#xd;
+set MACRO_JAR=%WORKSPACE%\src\main\resources\macro_CLI_ANY_V1.jar&#xd;
+if exist &quot;%MACRO_JAR%&quot; (&#xd;
+    del /F /Q &quot;%MACRO_JAR%&quot;&#xd;
+    echo Deleted macro JAR from resources: %MACRO_JAR%&#xd;
+) else (&#xd;
+    echo Macro JAR not found in resources, skipping: %MACRO_JAR%&#xd;
+)&#xd;
+&#xd;
+:: Delete macro_FILE_G5_V1.jar from builds folder&#xd;
+set JAR_TO_DELETE=%WORKSPACE%\macro_CLI_ANY_V1.jar&#xd;
+if exist &quot;%JAR_TO_DELETE%&quot; (&#xd;
+    del /F /Q &quot;%JAR_TO_DELETE%&quot;&#xd;
+    echo Deleted: %JAR_TO_DELETE%&#xd;
+) else (&#xd;
+    echo File not found, skipping: %JAR_TO_DELETE%&#xd;
+)</command>
+      <configuredLocalRules/>
+    </hudson.tasks.BatchFile>
+    <hudson.tasks.Maven>
+      <targets>clean install</targets>
+      <mavenName>nokia mvn</mavenName>
+      <pom>pom.xml</pom>
+      <properties>maven.repo.local=${JENKINS_HOME}/../maven/apache-maven-3.0.5/.m2/repository</properties>
+      <usePrivateRepository>false</usePrivateRepository>
+      <settings class="jenkins.mvn.FilePathSettingsProvider">
+        <path>${JENKINS_HOME}/../maven/apache-maven-3.0.5/.m2/settings.xml</path>
+      </settings>
+      <globalSettings class="jenkins.mvn.DefaultGlobalSettingsProvider"/>
+      <injectBuildVariables>false</injectBuildVariables>
+    </hudson.tasks.Maven>
+    <hudson.tasks.BatchFile>
+      <command>:: -----------------------------------------------&#xd;
+:: STEP 1 - Get latest build folder from packager&#xd;
+:: -----------------------------------------------&#xd;
+set PACKAGER_BUILDS=%JENKINS_HOME%\..\builds\packager&#xd;
+&#xd;
+for /f %%I in (&apos;powershell -command &quot;Get-ChildItem -Path &apos;%PACKAGER_BUILDS%&apos; -Directory | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName&quot;&apos;) do set LATEST_BUILD=%%I&#xd;
+&#xd;
+echo Latest packager build: %LATEST_BUILD%&#xd;
+&#xd;
+:: -----------------------------------------------&#xd;
+:: STEP 2 - Get JAR from latest build folder&#xd;
+:: -----------------------------------------------&#xd;
+for /f %%I in (&apos;powershell -command &quot;Get-ChildItem -Path &apos;%LATEST_BUILD%&apos; -Filter *.jar | Select-Object -First 1 -ExpandProperty FullName&quot;&apos;) do set JAR_PATH=%%I&#xd;
+&#xd;
+echo Running JAR: %JAR_PATH%&#xd;
+&#xd;
+:: -----------------------------------------------&#xd;
+:: STEP 3 - Run the JAR in current job workspace&#xd;
+:: -----------------------------------------------&#xd;
+cd &quot;%WORKSPACE%&quot;&#xd;
+java -jar &quot;%JAR_PATH%&quot; --PROJECT_ROOT &quot;%WORKSPACE%&quot; --NEI_SDK_BIN &quot;%JENKINS_HOME%\..\cpiozExecuter&quot; --scriptName package --cpioVersion %cpioVersion%&#xd;
+&#xd;
+:: Check if the JAR failed&#xd;
+if ERRORLEVEL 1 (&#xd;
+    echo Java JAR failed with exit code %ERRORLEVEL%. Aborting build.&#xd;
+    exit /b %ERRORLEVEL%&#xd;
+)&#xd;
+&#xd;
+:: -----------------------------------------------&#xd;
+:: STEP 4 - Get timestamp and commit for new build&#xd;
+:: -----------------------------------------------&#xd;
+for /f %%I in (&apos;powershell -command &quot;Get-Date -Format yyyyMMdd_HHmm&quot;&apos;) do set TIMESTAMP=%%I&#xd;
+for /f %%I in (&apos;git rev-parse --short HEAD&apos;) do set COMMIT=%%I&#xd;
+&#xd;
+:: -----------------------------------------------&#xd;
+:: STEP 5 - Create output build folder&#xd;
+:: -----------------------------------------------&#xd;
+if not exist &quot;%WORKSPACE%\*.Z&quot; (&#xd;
+    echo ERROR: No .Z files found in workspace - build may have failed&#xd;
+    exit /b 1&#xd;
+)&#xd;
+&#xd;
+if not exist &quot;%WORKSPACE%\*.specification&quot; (&#xd;
+    echo ERROR: No .specification files found in workspace - build may have failed&#xd;
+    exit /b 1&#xd;
+)&#xd;
+set OUTPUT_BUILDS=%JENKINS_HOME%\..\builds\%JOB_NAME%&#xd;
+set DEST=%OUTPUT_BUILDS%\%TIMESTAMP%_%COMMIT%&#xd;
+&#xd;
+if not exist &quot;%OUTPUT_BUILDS%&quot; mkdir &quot;%OUTPUT_BUILDS%&quot;&#xd;
+mkdir &quot;%DEST%&quot;&#xd;
+&#xd;
+:: -----------------------------------------------&#xd;
+:: STEP 6 - Copy cpioz output files to build folder&#xd;
+:: -----------------------------------------------&#xd;
+if not exist &quot;%DEST%&quot; mkdir &quot;%DEST%&quot;&#xd;
+xcopy /I /Y &quot;%WORKSPACE%\*.Z&quot; &quot;%DEST%\&quot;&#xd;
+xcopy /I /Y &quot;%WORKSPACE%\*.specification&quot; &quot;%DEST%\&quot;&#xd;
+&#xd;
+&#xd;
+:: -----------------------------------------------&#xd;
+:: STEP 7 - Write info file&#xd;
+:: -----------------------------------------------&#xd;
+echo Build Time    : %TIMESTAMP%                          &gt; &quot;%DEST%\info.txt&quot;&#xd;
+echo Commit        : %COMMIT%                            &gt;&gt; &quot;%DEST%\info.txt&quot;&#xd;
+echo Branch        : %GIT_BRANCH%                        &gt;&gt; &quot;%DEST%\info.txt&quot;&#xd;
+echo Job           : %JOB_NAME%                          &gt;&gt; &quot;%DEST%\info.txt&quot;&#xd;
+echo Build Number  : %BUILD_NUMBER%                      &gt;&gt; &quot;%DEST%\info.txt&quot;&#xd;
+echo Packager Build: %LATEST_BUILD%                      &gt;&gt; &quot;%DEST%\info.txt&quot;&#xd;
+echo JAR Used      : %JAR_PATH%                          &gt;&gt; &quot;%DEST%\info.txt&quot;&#xd;
+&#xd;
+:: -----------------------------------------------&#xd;
+:: STEP 8 - Keep only last 10 builds&#xd;
+:: -----------------------------------------------&#xd;
+powershell -command &quot;Get-ChildItem -Path &apos;%OUTPUT_BUILDS%&apos; -Directory | Sort-Object Name | Select-Object -SkipLast 10 | ForEach-Object { Remove-Item $_.FullName -Recurse -Force; Write-Host &apos;Deleted old build:&apos; $_.Name }&quot;&#xd;
+&#xd;
+echo Done! Output copied to %DEST%&#xd;
+type &quot;%DEST%\info.txt&quot;</command>
+      <configuredLocalRules/>
+    </hudson.tasks.BatchFile>
+  </builders>
+  <publishers/>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.30"/>
+    <hudson.plugins.build__timeout.BuildTimeoutWrapper plugin="build-timeout@1.40">
+      <strategy class="hudson.plugins.build_timeout.impl.AbsoluteTimeOutStrategy">
+        <timeoutMinutes>10</timeoutMinutes>
+      </strategy>
+      <operationList>
+        <hudson.plugins.build__timeout.operations.AbortOperation/>
+      </operationList>
+    </hudson.plugins.build__timeout.BuildTimeoutWrapper>
+  </buildWrappers>
+</project>

@@ -1,0 +1,89 @@
+# =============================================================================
+# Jenkins controller repo — track configuration, not runtime state.
+#
+# Rule of thumb: if Jenkins, Maven, or a build regenerates it, it does not
+# belong here. Everything below stays on disk; it is just not versioned.
+# =============================================================================
+
+# --- Secrets -----------------------------------------------------------------
+# master.key + hudson.util.Secret together decrypt credentials.xml.
+# These must never be committed.
+/jenkins_home/secrets/
+/jenkins_home/credentials.xml
+/jenkins_home/identity.key.enc
+/jenkins_home/users/
+*.key
+*.jks
+*.p12
+*.pem
+
+# --- Build workspaces --------------------------------------------------------
+# Jenkins clones job repos in here. Nested git repos get silently recorded as
+# broken gitlinks (mode 160000) by `git add .`, which is what caused
+# "fatal: no submodule mapping found in .gitmodules". Keep the whole tree out.
+/jenkins_home/workspace/
+
+# --- Bundled runtimes and tooling --------------------------------------------
+# Reinstall these from upstream rather than versioning them.
+/java/
+/maven/
+/jenkins.war
+/jenkins_home/war/
+/jenkins_home/plugins/
+/jenkins_home/tools/
+
+# --- Job run history ---------------------------------------------------------
+# Job *definitions* are tracked (see the un-ignore rules below); their build
+# logs, timestamps and changelogs are runtime churn.
+/jenkins_home/jobs/*/builds/
+/jenkins_home/jobs/*/nextBuildNumber
+
+# --- Jenkins runtime state ---------------------------------------------------
+/jenkins_home/logs/
+/jenkins_home/updates/
+/jenkins_home/fingerprints/
+/jenkins_home/fingerprints*/
+/jenkins_home/nodes/
+/jenkins_home/caches/
+/jenkins_home/jobs/*/disk-usage.xml
+/jenkins_home/*.log
+/jenkins_home/nodeMonitors.xml
+/jenkins_home/jenkins.telemetry.Correlator.xml
+/jenkins_home/jenkins.install.*
+/jenkins_home/queue.xml*
+/jenkins_home/.owner
+/jenkins_home/.lastStarted
+
+# --- Maven local repository cache --------------------------------------------
+# Jenkins writes a per-workspace m2 cache (~2400 files); also catch a user-level
+# .m2 if one ever lands inside the repo.
+**/mvn.m2epository/
+**/*mvn.m2epository/
+.m2/
+
+# --- Release artifacts -------------------------------------------------------
+# builds/ holds ~122 MB of jars and cpio.Z archives (largest is 53 MB, past
+# GitHub's 50 MB warning threshold). The directory names embed the source
+# commit, so the binaries are reproducible. The info.txt manifests are kept as
+# the provenance record — see the un-ignore rule below.
+/builds/**/*.jar
+/builds/**/*.cpio.Z
+/builds/**/*.zip
+/builds/**/*.tar
+/builds/**/*.tar.gz
+/builds/**/*.specification
+!/builds/**/info.txt
+
+# --- Jenkins scratch ---------------------------------------------------------
+*@tmp/
+*.tmp
+*.bak
+*.old
+
+# --- OS / editor -------------------------------------------------------------
+Thumbs.db
+desktop.ini
+.DS_Store
+.idea/
+.vscode/
+*.swp

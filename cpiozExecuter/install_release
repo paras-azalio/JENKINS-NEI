@@ -1,0 +1,153 @@
+#!/bin/ksh
+
+stage="";
+contents="";
+patchadd="";
+version="\$Revision: /main/1 $"
+
+me=$0;
+dir="postinstall";
+
+if [ $me = "$dir/install_release" -o $me = "./$dir/install_release" ] ; then
+  : # ok
+else
+  echo 1>&2 "install_release: Sorry.  `basename $me` must be run in the release directory"
+  exit 1
+fi
+
+
+while getopts vhd: opt
+do
+	case "$opt" in
+	v)	echo "Version : $version";
+		exit 0;
+		;;
+	h)	print_usage;
+		exit 0;
+		;;
+	
+	d)  stage="$OPTARG";
+		;;
+	
+	\?) print_usage;
+		;;
+	esac
+done
+shift $(($OPTIND -1))
+
+if [ "$1" ]; then
+	contents=$1;
+else
+	contents=`ls $dir/*.contents`;
+fi
+#Silent
+#echo "contents is $contents";
+if [ ! -f "$contents" ] || [ -z "$contents" ]; then
+	print STDERR "Invalid contents file $contents!";
+	exit 1;
+fi 
+is_installer=`grep "release INSTALLER_REL" $contents | cut -d" " -f2`;
+if [ ! -z "$is_installer" ]; then
+	print STDERR "Installer does not need to be installed!"
+	print STDERR "It is just unpacked to the release area directory."
+	exit 1
+fi
+
+installer=`grep "requires INSTALLER_REL" $contents | cut -d" " -f2`; 
+patchto=`grep "patchto " $contents | cut -d" " -f2`;
+defaultdir=`grep "defbasedir" $contents | cut -d" " -f2`;
+
+if [ "$patchto" != "" ]; then
+	echo "You are installing patch $patchto!";
+	patchadd="../../"
+fi
+
+#If -d parameter is not given and defaultdir is, we are using defaultdir: 
+
+if [ "$stage" = "" ]; then
+		#echo "Parameter -d was not given.";
+		
+		#echo "Defaultdir is $defaultdir.";
+		if [ "$defaultdir" != "" ]; then
+			echo "Installing to defbasedir $defaultdir.";
+			stage="$defaultdir";
+			#echo "Stage = $stage";
+		else
+			#echo "Defbasedir or -d parameter not found.";
+			print STDERR "Installation directory was not given and no default value was found!";
+			print STDERR "Please, next time give it and try again."; 
+			exit 1;			
+		fi
+
+# Check that both -d parameter and defaultdir are not given. If they are, put user to choose
+# which one will be used:
+else
+	if [ "$defaultdir" != "" ]; then
+		echo "Both \"-d $stage\" and";
+		echo "\"defbasedir $defaultdir\"";
+		echo "are defined to be the base directory."; 
+		echo "Option -d is the one you gave when running Installer,";
+		echo "defbasedir has been defined when this package has been created.";
+		echo "Which one do you want to use?";
+		echo "1) -d $stage";
+		echo "2) defbasedir $defaultdir";
+		echo "Choose 1 or 2 (or q to quit):";
+	
+		until [[ "$stopnow" = "1" ]] ; 
+		do
+				read  answer
+				#echo "You gave \"$answer\" as answer.";
+				case $answer in
+					1)
+						echo "Using directory given with option -d.";
+						stopnow="1";
+					;;
+					2)
+						echo "Using default basedirectory $defaultdir";
+						stage="$defaultdir";
+						stopnow="1";
+					;;
+					q*|Q*)
+						echo "You chose to quit. Bye.";
+						exit 1;
+					;;
+					*)
+						echo "You didn't give a proper input. Please give one.";
+					;;
+				esac
+		done
+	fi
+fi
+
+if [ "$installer" = "" ]; then
+	#print STDERR "Unable to obtain required installer version.";
+	#print STDERR "Please, make sure it is installed before proceeding."; 
+	#exit 1;
+	print STDERR "Unable to obtain required installer version. Using the latest found!"; 
+	installer=`ls -d1 $patchadd../INSTALLER_REL_* | tail -1`;
+	if [ "$installer" = "" ]; then
+			print STDERR "Unable to obtain any installer!";
+			exit 1;
+	fi
+	installer_path="$patchadd../$installer/postinstall/";
+else
+	installer_path="$patchadd../$installer/postinstall/";
+fi
+
+installer="$installer_path/run_postinstall";
+
+if [ ! -d $installer_path ]; then
+		print STDERR "Required installer version $installer does not appear to be installed!";
+		print STDERR "Please, make sure it is installed before proceeding."; 
+	exit 1;
+fi
+# Silent
+#echo "Executing installer from $installer_path";
+
+if [ ! -z "$stage" ]; then
+	optarg="-d $stage";
+else
+	optarg="";
+fi
+
+$installer $optarg $contents;

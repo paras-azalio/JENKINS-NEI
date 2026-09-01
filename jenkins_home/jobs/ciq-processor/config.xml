@@ -1,0 +1,87 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.46.0">
+      <projectUrl>https://github.com/azalio-io/NOKIA_CR_CIQ_PROCESSOR/</projectUrl>
+      <displayName></displayName>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@5.10.0">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>https://github.com/azalio-io/NOKIA_CR_CIQ_PROCESSOR</url>
+        <credentialsId>gitLogin</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/dev</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="empty-list"/>
+    <extensions/>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <jdk>java8</jdk>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Maven>
+      <targets>clean install</targets>
+      <mavenName>mvn</mavenName>
+      <pom>pom.xml</pom>
+      <properties>maven.repo.local=%WORKSPACE%\mvn\.m2\repository</properties>
+      <usePrivateRepository>false</usePrivateRepository>
+      <settings class="jenkins.mvn.FilePathSettingsProvider">
+        <path>C:\Users\parmahaj\Documents\Projects\Nokia\NOKIA_CR_CIQ_PROCESSOR\.mvn\settings.xml</path>
+      </settings>
+      <globalSettings class="jenkins.mvn.DefaultGlobalSettingsProvider"/>
+      <injectBuildVariables>false</injectBuildVariables>
+    </hudson.tasks.Maven>
+    <hudson.tasks.BatchFile>
+      <command>:: Get timestamp using PowerShell&#xd;
+for /f %%I in (&apos;powershell -command &quot;Get-Date -Format yyyyMMdd_HHmm&quot;&apos;) do set TIMESTAMP=%%I&#xd;
+&#xd;
+:: Get last git commit&#xd;
+for /f %%I in (&apos;git rev-parse --short HEAD&apos;) do set COMMIT=%%I&#xd;
+&#xd;
+:: Get build number from Jenkins&#xd;
+set BUILD_NUM=%BUILD_NUMBER%&#xd;
+&#xd;
+:: Set paths&#xd;
+set BUILDS_DIR=%JENKINS_HOME%\..\builds\CIQ_PROCESSOR&#xd;
+set DEST=%BUILDS_DIR%\%TIMESTAMP%_%COMMIT%&#xd;
+&#xd;
+:: Create builds directory if not exists&#xd;
+if not exist &quot;%BUILDS_DIR%&quot; mkdir &quot;%BUILDS_DIR%&quot;&#xd;
+&#xd;
+:: Create new build folder and copy JAR&#xd;
+mkdir &quot;%DEST%&quot;&#xd;
+copy &quot;%WORKSPACE%\target\*.jar&quot; &quot;%DEST%\&quot;&#xd;
+&#xd;
+:: Write info file&#xd;
+echo Build Time  : %TIMESTAMP%      &gt; &quot;%DEST%\info.txt&quot;&#xd;
+echo Commit      : %COMMIT%        &gt;&gt; &quot;%DEST%\info.txt&quot;&#xd;
+echo Branch      : %GIT_BRANCH%    &gt;&gt; &quot;%DEST%\info.txt&quot;&#xd;
+echo Job         : %JOB_NAME%      &gt;&gt; &quot;%DEST%\info.txt&quot;&#xd;
+echo Build Number: %BUILD_NUM%     &gt;&gt; &quot;%DEST%\info.txt&quot;&#xd;
+&#xd;
+:: Keep only last 10 builds&#xd;
+powershell -command &quot;Get-ChildItem -Path &apos;%BUILDS_DIR%&apos; -Directory | Sort-Object Name | Select-Object -SkipLast 10 | ForEach-Object { Remove-Item $_.FullName -Recurse -Force; Write-Host &apos;Deleted old build:&apos; $_.Name }&quot;&#xd;
+&#xd;
+echo Done! Build copied to %DEST%&#xd;
+</command>
+      <configuredLocalRules/>
+    </hudson.tasks.BatchFile>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>

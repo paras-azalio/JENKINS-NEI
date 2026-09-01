@@ -1,0 +1,25 @@
+# Normalize line endings so the Jenkins controller repo is consistent whether
+# it is checked out on Windows or on a Linux agent.
+
+* text=auto eol=lf
+
+# Jenkins writes its config with LF; keep it that way.
+*.xml    text eol=lf
+*.txt    text eol=lf
+*.md     text eol=lf
+
+# Windows batch files need CRLF to be safe.
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+
+# Shell scripts must stay LF or they break on Unix agents.
+*.sh     text eol=lf
+
+# Binaries — never touch these.
+*.exe    binary
+*.dll    binary
+*.jar    binary
+*.war    binary
+*.Z      binary
+*.zip    binary
+*.gz     binary
