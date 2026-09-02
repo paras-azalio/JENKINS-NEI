@@ -1,0 +1,7 @@
+Build Time    : 20260903_0128                          
+Commit        : 3d5c792                            
+Branch        : origin/test_jenkins                        
+Job           : CLI_CR                          
+Build Number  : 13                      
+Packager Build: C:\Users\parmahaj\OneDrive - Nokia\Documents\Projects\Nokia\JENKINS\builds\packager\20260413_1408_575cadd                      
+JAR Used      : C:\Users\parmahaj\OneDrive - Nokia\Documents\Projects\Nokia\JENKINS\builds\packager\20260413_1408_575cadd\nei-packager-cli-1.0.0.jar                          

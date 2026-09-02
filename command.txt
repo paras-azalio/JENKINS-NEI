@@ -1,0 +1,252 @@
+===============================================================================
+ JENKINS - COMMAND REFERENCE
+ Portable Jenkins controller for the Nokia NEI build jobs.
+
+ Everything is self-contained in this folder: jenkins.war, the JDKs under
+ java\, Maven under maven\, and all Jenkins state under jenkins_home\.
+ Nothing needs to be installed on the machine.
+
+ URL   http://localhost:8082
+ Home  <this folder>\jenkins_home
+===============================================================================
+
+
+-------------------------------------------------------------------------------
+ 1. START JENKINS
+-------------------------------------------------------------------------------
+
+Normal way - double-click, or from a terminal in this folder:
+
+    startup.bat
+
+It runs Jenkins in the foreground; the window must stay open. Closing the
+window stops Jenkins.
+
+What startup.bat sets up for you (JDK 21 runs the controller itself):
+
+    SET BASE=%~dp0
+    SET JENKINS_HOME=%BASE%jenkins_home
+    SET JAVA_HOME=%BASE%java\jdk-21.0.10.7-hotspot
+    SET MAVEN_HOME=%BASE%maven\apache-maven-3.0.5
+    SET PATH=%JAVA_HOME%\bin;%MAVEN_HOME%\bin;%PATH%
+    SET JAVA_TOOL_OPTIONS=-Dfile.encoding=Cp1252
+
+Equivalent raw command, if you want to run it by hand or change the port:
+
+    SET JENKINS_PORTABLE_HOME=%CD%\
+    "%CD%\java\jdk-21.0.10.7-hotspot\bin\java.exe" ^
+      -Xms1024m -Xmx2048m -Dfile.encoding=Cp1252 ^
+      -DJENKINS_HOME="%CD%\jenkins_home" ^
+      -jar "%CD%\jenkins.war" --httpPort=8082
+
+  The SET line is REQUIRED and the value MUST end in a backslash. The
+  "nokia mvn" tool is registered in Jenkins with home
+
+      ${JENKINS_PORTABLE_HOME}maven\apache-maven-3.0.5
+
+  There is no separator between the variable and "maven", so the value has to
+  supply the trailing backslash itself.
+
+  It must be a real ENVIRONMENT VARIABLE, not a -D system property. Jenkins
+  expands ${...} in a tool home via Util.replaceMacro against the controller's
+  EnvVars, which come from the JVM's System.getenv() - JVM system properties
+  are never consulted. Passing only -DJENKINS_PORTABLE_HOME looks right and
+  changes nothing; startup.bat sets both (line 11 the variable, line 41 the
+  property) and it is line 11 that does the work.
+
+  Get this wrong and every Maven build step dies with
+
+      FATAL: Couldn't find any executable in ${JENKINS_PORTABLE_HOME}maven\apache-maven-3.0.5
+
+  AFTER the git checkout has already succeeded, which makes it look like a
+  build or SCM problem rather than a startup problem.
+
+PowerShell version:
+
+    $env:JENKINS_HOME = "$PWD\jenkins_home"
+    & "$PWD\java\jdk-21.0.10.7-hotspot\bin\java.exe" -Xmx2048m `
+        -DJENKINS_HOME="$PWD\jenkins_home" `
+        -jar "$PWD\jenkins.war" --httpPort=8082
+
+Run it in the background instead of holding a window open. Verified working:
+
+    $b    = "C:\Users\<you>\...\Nokia\JENKINS"        # no trailing backslash
+    $java = "$b\java\jdk-21.0.10.7-hotspot\bin\java.exe"
+    $env:JENKINS_PORTABLE_HOME = "$b\"          # REQUIRED - see note above
+    $args = '-Xms1024m -Xmx2048m -Dfile.encoding=Cp1252 ' +
+            '"-DJENKINS_HOME={0}\jenkins_home" ' +
+            '-jar "{0}\jenkins.war" --httpPort=8082' -f $b
+    Start-Process -FilePath $java -ArgumentList $args -WorkingDirectory $b `
+                  -RedirectStandardOutput jenkins.out -RedirectStandardError jenkins.err `
+                  -WindowStyle Hidden
+
+  Start-Process inherits the caller's environment, so setting
+  $env:JENKINS_PORTABLE_HOME in the same PowerShell command before the call is
+  enough - verified by launching a child and echoing the variable back.
+
+  Two traps, both caused by this folder living under "OneDrive - Nokia":
+
+  * Pass ONE quoted argument string, not a comma-separated -ArgumentList.
+    Start-Process joins list elements with spaces and does NOT quote them, so
+    the space in "OneDrive - Nokia" splits the argument and java dies with
+        Unrecognized option: -
+        Error: Could not create the Java Virtual Machine.
+    The embedded quotes around -DJENKINS_HOME and the .war path are required.
+
+  * Never let a path argument end in a backslash. "...\jenkins_home\" makes
+    the trailing \ escape the closing quote, producing the same error.
+
+Startup takes roughly one to two minutes. Until it finishes, the site answers
+HTTP 503 with a "Jenkins is getting ready" page - that is normal, not a
+failure. It is ready when the log says:
+
+    hudson.lifecycle.Lifecycle#onReady: Jenkins is fully up and running
+
+
+-------------------------------------------------------------------------------
+ 2. STOP JENKINS
+-------------------------------------------------------------------------------
+
+If it is running in a console window, Ctrl+C in that window is the clean stop.
+
+    shutdown.bat
+
+  !! WARNING: shutdown.bat is WRONG as written. It kills whatever is
+  !! listening on port 8080, but startup.bat serves on 8082. It has never
+  !! stopped this Jenkins. Use one of the commands below until it is fixed.
+
+Kill by the correct port (8082):
+
+    for /f "tokens=5" %a in ('netstat -aon ^| find ":8082" ^| find "LISTENING"') do taskkill /PID %a /F
+
+PowerShell equivalent:
+
+    Get-NetTCPConnection -LocalPort 8082 -State Listen |
+        ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+
+Graceful shutdown over HTTP (needs an authenticated admin session):
+
+    curl -X POST http://localhost:8082/safeExit --user <user>:<api-token>
+
+
+-------------------------------------------------------------------------------
+ 3. CHECK STATUS
+-------------------------------------------------------------------------------
+
+Is it listening?
+
+    netstat -aon | find ":8082" | find "LISTENING"
+    powershell -Command "Get-NetTCPConnection -LocalPort 8082 -State Listen"
+
+Is it answering?
+
+    curl -I http://localhost:8082/login
+
+Java processes:
+
+    powershell -Command "Get-Process java,javaw | Select-Object Id,ProcessName"
+
+First-run admin password (only if setup has not been completed):
+
+    type jenkins_home\secrets\initialAdminPassword
+
+Controller log, when started via startup.bat, goes to the console window.
+Jenkins' own logs:
+
+    dir jenkins_home\logs
+
+
+-------------------------------------------------------------------------------
+ 4. THE JOBS
+-------------------------------------------------------------------------------
+
+    CLI_CR            builds JAVA_CLICR_ANY_V1  from azalio-io/JAVA_NOKIA_CLICR_AUTOMATION
+    FILE_CR           builds JAVA_FILECR_ANY_V1 from azalio-io/NOKIA_FILE_CR_V1
+    CLI_NEI_PACKAGE   builds JAVA_CLI_ANY_V1    from azalio-io/NOKIA_CLI_ANY
+    ciq-processor     builds the CIQ processor jar
+    packager          builds nei-packager-cli, used by the three NEI jobs
+    GGN_CLI_Deploy    deploy job
+    GGN_File_Deploy   deploy job
+
+Each NEI job takes a "cpioVersion" parameter (default 1.0.0) and writes its
+output to  builds\<JOB_NAME>\<timestamp>_<commit>\  next to this folder.
+
+Build order matters: "packager" must have run at least once, because the NEI
+jobs pick up the newest jar from builds\packager\ .
+
+Tool names configured in Jenkins (referenced by the job configs):
+
+    JDK    java8        -> java\jdk-8.0.332.9-hotspot
+    Maven  nokia mvn    -> maven\apache-maven-3.0.5
+
+Note the split: the controller runs on JDK 21, but the jobs compile with
+java8, because the NEI macro jar has to load under the InstantLink host's
+JRE 8.
+
+
+-------------------------------------------------------------------------------
+ 5. TRIGGER A BUILD FROM THE COMMAND LINE
+-------------------------------------------------------------------------------
+
+Get an API token first: http://localhost:8082/user/<you>/configure -> API Token
+
+REST, with a parameter:
+
+    curl -X POST "http://localhost:8082/job/FILE_CR/buildWithParameters?cpioVersion=1.0.0" ^
+         --user <user>:<api-token>
+
+REST, no parameters:
+
+    curl -X POST "http://localhost:8082/job/packager/build" --user <user>:<api-token>
+
+Via the Jenkins CLI jar:
+
+    curl -O http://localhost:8082/jnlpJars/jenkins-cli.jar
+
+    java -jar jenkins-cli.jar -s http://localhost:8082/ -auth <user>:<api-token> list-jobs
+    java -jar jenkins-cli.jar -s http://localhost:8082/ -auth <user>:<api-token> build FILE_CR -p cpioVersion=1.0.0 -f -v
+    java -jar jenkins-cli.jar -s http://localhost:8082/ -auth <user>:<api-token> console FILE_CR
+
+Last build result:
+
+    curl -s "http://localhost:8082/job/FILE_CR/lastBuild/api/json?tree=number,result,timestamp" --user <user>:<api-token>
+
+
+-------------------------------------------------------------------------------
+ 6. BUILD A PACKAGE WITHOUT JENKINS
+-------------------------------------------------------------------------------
+
+The same .cpio.Z can be produced directly, which is faster for a dev loop and
+does not need Jenkins running at all:
+
+    powershell -File .\nei-tools\make-cpioz.ps1 -ProjectDir <project> -ShowEnv
+    powershell -File .\nei-tools\make-cpioz.ps1 -ProjectDir <project>
+    powershell -File .\nei-tools\make-cpioz.ps1 -ProjectDir <project> -Version 1.1.4
+
+Do not pipe its output. See nei-tools\README.md for the full story.
+
+
+-------------------------------------------------------------------------------
+ 7. HOUSEKEEPING
+-------------------------------------------------------------------------------
+
+Port 8082 already in use - start on another port:
+
+    startup.bat            (edit --httpPort=8082 inside)
+    ...or run the raw java command from section 1 with --httpPort=8090
+
+Jenkins will not start / behaves oddly after a hard kill:
+
+    del jenkins_home\queue.xml
+    rmdir /s /q jenkins_home\caches
+
+Reset a job's build history:
+
+    rmdir /s /q jenkins_home\jobs\<JOB>\builds
+    echo 1 > jenkins_home\jobs\<JOB>\nextBuildNumber
+
+Never commit these - they are already in .gitignore:
+
+    jenkins_home\secrets\        (master.key + hudson.util.Secret)
+    jenkins_home\credentials.xml (the stored GitHub credential)
+    jenkins_home\workspace\      (Jenkins re-clones the job repos here)

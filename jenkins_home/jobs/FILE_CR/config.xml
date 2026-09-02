@@ -1,4 +1,4 @@
-<?xml version='1.1' encoding='UTF-8'?>
+﻿<?xml version='1.1' encoding='UTF-8'?>
 <project>
   <actions/>
   <description></description>
@@ -32,14 +32,14 @@
     <userRemoteConfigs>
       <hudson.plugins.git.UserRemoteConfig>
         <name>origin</name>
-        <refspec>+refs/heads/develop:refs/remotes/origin/develop</refspec>
+        <refspec>+refs/heads/development:refs/remotes/origin/development</refspec>
         <url>https://github.com/azalio-io/NOKIA_FILE_CR_V1</url>
         <credentialsId>gitLogin</credentialsId>
       </hudson.plugins.git.UserRemoteConfig>
     </userRemoteConfigs>
     <branches>
       <hudson.plugins.git.BranchSpec>
-        <name>*/paras</name>
+        <name>*/development</name>
       </hudson.plugins.git.BranchSpec>
     </branches>
     <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
@@ -108,14 +108,14 @@ if exist &quot;%JAR_TO_DELETE%&quot; (&#xd;
 :: -----------------------------------------------&#xd;
 set PACKAGER_BUILDS=%JENKINS_HOME%\..\builds\packager&#xd;
 &#xd;
-for /f %%I in (&apos;powershell -command &quot;Get-ChildItem -Path &apos;%PACKAGER_BUILDS%&apos; -Directory | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName&quot;&apos;) do set LATEST_BUILD=%%I&#xd;
+for /f &quot;delims=&quot; %%I in (&apos;powershell -command &quot;Get-ChildItem -Path &apos;%PACKAGER_BUILDS%&apos; -Directory | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName&quot;&apos;) do set LATEST_BUILD=%%I&#xd;
 &#xd;
 echo Latest packager build: %LATEST_BUILD%&#xd;
 &#xd;
 :: -----------------------------------------------&#xd;
 :: STEP 2 - Get JAR from latest build folder&#xd;
 :: -----------------------------------------------&#xd;
-for /f %%I in (&apos;powershell -command &quot;Get-ChildItem -Path &apos;%LATEST_BUILD%&apos; -Filter *.jar | Select-Object -First 1 -ExpandProperty FullName&quot;&apos;) do set JAR_PATH=%%I&#xd;
+for /f &quot;delims=&quot; %%I in (&apos;powershell -command &quot;Get-ChildItem -Path &apos;%LATEST_BUILD%&apos; -Filter *.jar | Select-Object -First 1 -ExpandProperty FullName&quot;&apos;) do set JAR_PATH=%%I&#xd;
 &#xd;
 echo Running JAR: %JAR_PATH%&#xd;
 &#xd;
@@ -123,7 +123,10 @@ echo Running JAR: %JAR_PATH%&#xd;
 :: STEP 3 - Run the JAR in current job workspace&#xd;
 :: -----------------------------------------------&#xd;
 cd &quot;%WORKSPACE%&quot;&#xd;
-java -jar &quot;%JAR_PATH%&quot; --PROJECT_ROOT &quot;%WORKSPACE%&quot; --NEI_SDK_BIN &quot;%JENKINS_HOME%\..\cpiozExecuter&quot; --cpioVersion &quot;%cpioVersion%&quot; --scriptName package&#xd;
+set NEI_SDK_DIR=C:\neisdk&#xd;
+if not exist "%NEI_SDK_DIR%" mkdir "%NEI_SDK_DIR%"&#xd;
+xcopy /Y /Q "%JENKINS_HOME%\..\cpiozExecuter\*.*" "%NEI_SDK_DIR%\" &gt;nul&#xd;
+java -jar &quot;%JAR_PATH%&quot; --PROJECT_ROOT &quot;%WORKSPACE%&quot; --NEI_SDK_BIN &quot;%NEI_SDK_DIR%&quot; --cpioVersion &quot;%cpioVersion%&quot; --scriptName package&#xd;
 :: Check if the JAR failed&#xd;
 if ERRORLEVEL 1 (&#xd;
     echo Java JAR failed with exit code %ERRORLEVEL%. Aborting build.&#xd;
@@ -132,8 +135,8 @@ if ERRORLEVEL 1 (&#xd;
 :: -----------------------------------------------&#xd;
 :: STEP 4 - Get timestamp and commit for new build&#xd;
 :: -----------------------------------------------&#xd;
-for /f %%I in (&apos;powershell -command &quot;Get-Date -Format yyyyMMdd_HHmm&quot;&apos;) do set TIMESTAMP=%%I&#xd;
-for /f %%I in (&apos;git rev-parse --short HEAD&apos;) do set COMMIT=%%I&#xd;
+for /f &quot;delims=&quot; %%I in (&apos;powershell -command &quot;Get-Date -Format yyyyMMdd_HHmm&quot;&apos;) do set TIMESTAMP=%%I&#xd;
+for /f &quot;delims=&quot; %%I in (&apos;git rev-parse --short HEAD&apos;) do set COMMIT=%%I&#xd;
 &#xd;
 :: -----------------------------------------------&#xd;
 :: STEP 5 - Create output build folder&#xd;

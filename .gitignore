@@ -74,6 +74,12 @@
 /builds/**/*.specification
 !/builds/**/info.txt
 
+# --- NEI installer staging ---------------------------------------------------
+# installer.exe stages the whole install tree here before building the cpio.
+# Hundreds of files, recreated every build, deleted by the packager on success.
+/cpiozExecuter/installer_temp/
+*.installer.tmp/
+
 # --- Jenkins scratch ---------------------------------------------------------
 *@tmp/
 *.tmp
